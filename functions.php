@@ -4,7 +4,6 @@ require_once 'vendor/autoload.php';
 
 use Httpful\Request;
 
-print_r(retrieve_key_list());
 
 function authorize() {
 	$url = 'https://login.microsoftonline.com/botframework.com/oauth2/v2.0/token';
