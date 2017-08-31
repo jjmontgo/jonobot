@@ -7,11 +7,14 @@ use Httpful\Request;
 
 function authorize() {
 	$url = 'https://login.microsoftonline.com/botframework.com/oauth2/v2.0/token';
+	$scopeEmulator = BOT_CLIENT_ID . '/.default';
+	$scopeLive = 'https://api.botframework.com/.default';
+	$scope = $scopeLive;
 	$params = array(
 		'grant_type' => 'client_credentials',
 		'client_id' => BOT_CLIENT_ID,
 		'client_secret' => BOT_CLIENT_SECRET,
-		'scope' => 'https://api.botframework.com/.default',
+		'scope' => $scope,
 	);
 	$response = Request::post($url)
 		->body(http_build_query($params))
@@ -21,7 +24,9 @@ function authorize() {
 }
 
 function retrieve_key_list() {
-	$url = 'https://login.botframework.com/v1/.well-known/openidconfiguration';
+	$urlLive = 'https://login.botframework.com/v1/.well-known/openidconfiguration';
+	$urlEmulator = 'https://login.microsoftonline.com/botframework.com/v2.0/.well-known/openid-configuration';
+	$url = $urlLive;
 	$response = Request::get($url)
 		->expectsJson()
 		->send();
@@ -31,7 +36,7 @@ function retrieve_key_list() {
 	$response = Request::get($url)
 		->expectsJson()
 		->send();
-	return json_decode($response);
+	return json_decode($response, true);
 }
 
 /**
@@ -70,12 +75,32 @@ function get_bearer_token() {
 }
 
 
-
+/**
+ *
+ * 1. The token was sent in the HTTP Authorization header with "Bearer" scheme.
+ * 2. The token is valid JSON that conforms to the JWT standard.
+ * 3. The token contains an "issuer" claim with value of
+ * 		https://sts.windows.net/d6d49420-f39b-4df7-a1dc-d59a935871db/.
+ * 4. The token contains an "audience" claim with a value equal to the bot's
+ * 		Microsoft App ID.
+ * 5. The token contains an "appid" claim with the value equal to the
+ * 		bot's Microsoft App ID.
+ * 6. The token has not yet expired. Industry-standard clock-skew is 5
+ * 		minutes.
+ * 7.	The token has a valid cryptographic signature with a key listed in
+ * 		the OpenID keys document that was retrieved in Step 3.
+ */
 function received_token_is_valid($token) {
 	$token_valid = false;
 
 	// 1 separate token by dot (.)
 	$token_arr = explode('.', $token);
+
+	// if (sizeof($token_arr) < 3) {
+	// 	trigger_error('Invalid token: '.$token, E_USER_ERROR);
+	// }
+
+
 	$headers_enc = $token_arr[0];
 	$claims_enc = $token_arr[1];
 	$sig_enc = $token_arr[2];
@@ -87,6 +112,7 @@ function received_token_is_valid($token) {
 
 	// 3 get key list
 	$keylist_arr = retrieve_key_list();
+
 	foreach($keylist_arr['keys'] as $key => $value) {
 
 	  // 4 select one key (which matches)
@@ -129,3 +155,6 @@ function base64_url_decode($arg) {
   return $res;
 }
 
+function record($msg) {
+	file_put_contents('log.txt', $msg);
+}

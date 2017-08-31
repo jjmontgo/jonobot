@@ -3,5 +3,44 @@
 include_once 'defines.php';
 include_once 'functions.php';
 
+use Httpful\Request;
 
-print_r(retrieve_key_list());
+$authResponse = authorize();
+$accessToken = $authResponse->access_token;
+
+$token = get_bearer_token();
+
+if (!received_token_is_valid($token)) {
+	header('HTTP/1.0 403 Forbidden', true, 403);
+	exit();
+}
+
+$request = json_decode(file_get_contents('php://input'), true);
+// record(print_r($request, true));
+header('HTTP/1.1 200 OK', true, 200);
+
+$reply = json_encode(array(
+	'conversation' => $request['conversation'],
+	'from' => $request['recipient'],
+	'locale' => $request['locale'],
+	'recipient' => $request['from'],
+	'replyTold' => $request['id'],
+	'type' => 'message',
+	'text' => 'Normally I wouldnt say this but...',
+	'speak' => 'Fuck you!',
+	'textFormat' => 'plain',
+));
+
+$responseUrl = $request['serviceUrl'] . '/v3/conversations/' . $request['conversation']['id'] . '/activities/' . $request['id'];
+try {
+	$response = Request::post($responseUrl)
+		->addHeader('Authorization', 'Bearer ' . $accessToken)
+		//->addHeader('Authorization', 'Bearer ' . BOT_CLIENT_ID)
+		->addHeader('Content-Type', 'application/json')
+		->expectsJson()
+		->body($reply)
+		->send();
+	record($response);
+} catch (Exception $e) {
+	record('');
+}
