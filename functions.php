@@ -8,7 +8,7 @@ function authorize() {
 	$url = 'https://login.microsoftonline.com/botframework.com/oauth2/v2.0/token';
 	$scopeEmulator = BOT_CLIENT_ID . '/.default';
 	$scopeLive = 'https://api.botframework.com/.default';
-	$scope = $scopeEmulator;
+	$scope = $scopeLive;
 	$params = array(
 		'grant_type' => 'client_credentials',
 		'client_id' => BOT_CLIENT_ID,
@@ -25,7 +25,7 @@ function authorize() {
 function retrieve_key_list() {
 	$urlLive = 'https://login.botframework.com/v1/.well-known/openidconfiguration';
 	$urlEmulator = 'https://login.microsoftonline.com/botframework.com/v2.0/.well-known/openid-configuration';
-	$url = $urlEmulator;
+	$url = $urlLive;
 	$response = Request::get($url)
 		->expectsJson()
 		->send();
@@ -42,23 +42,23 @@ function retrieve_key_list() {
  * Get hearder Authorization
  * */
 function get_authorization_header() {
-        $headers = null;
-        if (isset($_SERVER['Authorization'])) {
-            $headers = trim($_SERVER["Authorization"]);
-        }
-        else if (isset($_SERVER['HTTP_AUTHORIZATION'])) { //Nginx or fast CGI
-            $headers = trim($_SERVER["HTTP_AUTHORIZATION"]);
-        } elseif (function_exists('apache_request_headers')) {
-            $requestHeaders = apache_request_headers();
-            // Server-side fix for bug in old Android versions (a nice side-effect of this fix means we don't care about capitalization for Authorization)
-            $requestHeaders = array_combine(array_map('ucwords', array_keys($requestHeaders)), array_values($requestHeaders));
-            //print_r($requestHeaders);
-            if (isset($requestHeaders['Authorization'])) {
-                $headers = trim($requestHeaders['Authorization']);
-            }
-        }
-        return $headers;
+  $headers = null;
+  if (isset($_SERVER['Authorization'])) {
+	  $headers = trim($_SERVER["Authorization"]);
+  }
+  else if (isset($_SERVER['HTTP_AUTHORIZATION'])) { //Nginx or fast CGI
+    $headers = trim($_SERVER["HTTP_AUTHORIZATION"]);
+  } elseif (function_exists('apache_request_headers')) {
+    $requestHeaders = apache_request_headers();
+    // Server-side fix for bug in old Android versions (a nice side-effect of this fix means we don't care about capitalization for Authorization)
+    $requestHeaders = array_combine(array_map('ucwords', array_keys($requestHeaders)), array_values($requestHeaders));
+    //print_r($requestHeaders);
+    if (isset($requestHeaders['Authorization'])) {
+        $headers = trim($requestHeaders['Authorization']);
     }
+  }
+  return $headers;
+}
 /**
  * get access token from header
  * */
