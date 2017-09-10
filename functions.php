@@ -110,24 +110,28 @@ function received_token_is_valid($token) {
 	// The token contains an "issuer" claim with value of
 	// https://sts.windows.net/d6d49420-f39b-4df7-a1dc-d59a935871db/.
 	if ($claims_arr['iss'] != 'https://sts.windows.net/d6d49420-f39b-4df7-a1dc-d59a935871db/') {
+		record('invalid issuer');
 		return false;
 	}
 
 	// The token contains an "audience" claim with a value equal to the bot's
 	// Microsoft App ID.
 	if ($claims_arr['aud'] != BOT_CLIENT_ID) {
+		record('invalid audience');
 		return false;
 	}
 
 	// The token contains an "appid" claim with the value equal to the
  	// bot's Microsoft App ID.
 	if ($claims_arr['appid'] != BOT_CLIENT_ID) {
+		record("invalid appid");
 		return false;
 	}
 
 	// The token has not yet expired. Industry-standard clock-skew is 5
 	// minutes.
 	if ($claims_arr['exp'] - 150 < time() + 150) {
+		record("timestamp expired");
 		return false;
 	}
 
