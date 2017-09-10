@@ -6,8 +6,8 @@ include_once 'functions.php';
 use Httpful\Request;
 
 // do I only do this if I want to initiate the interaction?
-// $authResponse = authorize();
-// $accessToken = $authResponse->access_token;
+$authResponse = authorize();
+$accessToken = $authResponse->access_token;
 
 $token = get_bearer_token();
 // if (!received_token_is_valid($token)) {
@@ -41,7 +41,7 @@ $responseUrl = $request['serviceUrl'] . '/v3/conversations/' . $request['convers
 
 try {
 	$response = Request::post($responseUrl)
-		->addHeader('Authorization', 'Bearer ' . $token)
+		->addHeader('Authorization', 'Bearer ' . $accessToken)
 		->addHeader('Content-Type', 'application/json')
 		->body($reply)
 		->sendsJson()
