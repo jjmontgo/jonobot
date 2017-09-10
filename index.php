@@ -39,8 +39,6 @@ $reply = json_encode(array(
 
 $responseUrl = $request['serviceUrl'] . '/v3/conversations/' . $request['conversation']['id'] . '/activities/' . $request['id'];
 
-record($responseUrl.' '.$reply);
-
 try {
 	$response = Request::post($responseUrl)
 		->addHeader('Authorization', 'Bearer ' . $token)
@@ -48,6 +46,7 @@ try {
 		->body($reply)
 		->sendsJson()
 		->send();
+	record(print_r($response, true));
 } catch (Exception $e) {
 	// record('');
 }
