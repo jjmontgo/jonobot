@@ -38,6 +38,9 @@ $reply = json_encode(array(
 ));
 
 $responseUrl = $request['serviceUrl'] . '/v3/conversations/' . $request['conversation']['id'] . '/activities/' . $request['id'];
+
+record($responseUrl.' '.$reply);
+
 try {
 	$response = Request::post($responseUrl)
 		->addHeader('Authorization', 'Bearer ' . $token)
