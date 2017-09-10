@@ -9,11 +9,11 @@ use Httpful\Request;
 // $authResponse = authorize();
 // $accessToken = $authResponse->access_token;
 
-$token = get_bearer_token();
-if (!received_token_is_valid($token)) {
-	header('HTTP/1.0 403 Forbidden', true, 403);
-	exit();
-}
+// $token = get_bearer_token();
+// if (!received_token_is_valid($token)) {
+// 	header('HTTP/1.0 403 Forbidden', true, 403);
+// 	exit();
+// }
 
 $request = json_decode(file_get_contents('php://input'), true);
 // record(print_r($request, true));
