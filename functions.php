@@ -110,7 +110,7 @@ function received_token_is_valid($token) {
 	// The token contains an "issuer" claim with value of
 	// https://sts.windows.net/d6d49420-f39b-4df7-a1dc-d59a935871db/.
 	if ($claims_arr['iss'] != 'https://sts.windows.net/d6d49420-f39b-4df7-a1dc-d59a935871db/') {
-		record('invalid issuer');
+		record('invalid issuer: '.$claims_arr['iss']);
 		return false;
 	}
 
