@@ -4,12 +4,11 @@ require_once 'vendor/autoload.php';
 
 use Httpful\Request;
 
-
 function authorize() {
 	$url = 'https://login.microsoftonline.com/botframework.com/oauth2/v2.0/token';
 	$scopeEmulator = BOT_CLIENT_ID . '/.default';
 	$scopeLive = 'https://api.botframework.com/.default';
-	$scope = $scopeLive;
+	$scope = $scopeEmulator;
 	$params = array(
 		'grant_type' => 'client_credentials',
 		'client_id' => BOT_CLIENT_ID,
@@ -26,7 +25,7 @@ function authorize() {
 function retrieve_key_list() {
 	$urlLive = 'https://login.botframework.com/v1/.well-known/openidconfiguration';
 	$urlEmulator = 'https://login.microsoftonline.com/botframework.com/v2.0/.well-known/openid-configuration';
-	$url = $urlLive;
+	$url = $urlEmulator;
 	$response = Request::get($url)
 		->expectsJson()
 		->send();
@@ -93,44 +92,66 @@ function get_bearer_token() {
 function received_token_is_valid($token) {
 	$token_valid = false;
 
-	// 1 separate token by dot (.)
 	$token_arr = explode('.', $token);
 
-	// if (sizeof($token_arr) < 3) {
-	// 	trigger_error('Invalid token: '.$token, E_USER_ERROR);
-	// }
+	if (sizeof($token_arr) < 3) {
+		trigger_error('Invalid token: '.$token, E_USER_ERROR);
+	}
 
 
 	$headers_enc = $token_arr[0];
 	$claims_enc = $token_arr[1];
 	$sig_enc = $token_arr[2];
 
-	// 2 base 64 url decoding
 	$headers_arr = json_decode(base64_url_decode($headers_enc), TRUE);
 	$claims_arr = json_decode(base64_url_decode($claims_enc), TRUE);
 	$sig = base64_url_decode($sig_enc);
 
-	// 3 get key list
+	// The token contains an "issuer" claim with value of
+	// https://sts.windows.net/d6d49420-f39b-4df7-a1dc-d59a935871db/.
+	if ($claims_arr['iss'] != 'https://sts.windows.net/d6d49420-f39b-4df7-a1dc-d59a935871db/') {
+		return false;
+	}
+
+	// The token contains an "audience" claim with a value equal to the bot's
+	// Microsoft App ID.
+	if ($claims_arr['aud'] != BOT_CLIENT_ID) {
+		return false;
+	}
+
+	// The token contains an "appid" claim with the value equal to the
+ 	// bot's Microsoft App ID.
+	if ($claims_arr['appid'] != BOT_CLIENT_ID) {
+		return false;
+	}
+
+	// The token has not yet expired. Industry-standard clock-skew is 5
+	// minutes.
+	if ($claims_arr['exp'] - 150 < time() + 150) {
+		return false;
+	}
+
+	// The token has a valid cryptographic signature with a key listed in
+  // the OpenID keys document that was retrieved in Step 3.
 	$keylist_arr = retrieve_key_list();
 
 	foreach($keylist_arr['keys'] as $key => $value) {
-
-	  // 4 select one key (which matches)
+	  // select one key (which matches)
 	  if($value['kid'] == $headers_arr['kid']) {
 
-	    // 5 get public key from key info
+	    // get public key from key info
 	    $cert_txt = '-----BEGIN CERTIFICATE-----' . "\n" . chunk_split($value['x5c'][0], 64) . '-----END CERTIFICATE-----';
 	    $cert_obj = openssl_x509_read($cert_txt);
 	    $pkey_obj = openssl_pkey_get_public($cert_obj);
 	    $pkey_arr = openssl_pkey_get_details($pkey_obj);
 	    $pkey_txt = $pkey_arr['key'];
 
-	    // 6 verify signature
+	    // verify signature
 	    $token_valid = openssl_verify($headers_enc . '.' . $claims_enc, $sig, $pkey_txt, OPENSSL_ALGO_SHA256);
 	  }
 	}
 
-	// 7 show result
+	// show result
 	return $token_valid;
 }
 
@@ -157,4 +178,86 @@ function base64_url_decode($arg) {
 
 function record($msg) {
 	file_put_contents('log.txt', $msg);
+}
+
+function qna_api_create_knowledge_base($name) {
+	$url = 'https://westus.api.cognitive.microsoft.com/qnamaker/v2.0/knowledgebases/create';
+	$json = json_encode(array('name' => $name));
+	$response = Request::post($url)
+		->addHeader('Ocp-Apim-Subscription-Key', QNA_SUBSCRIPTION_KEY)
+		->addHeader('Content-Type', 'application/json')
+		->expectsJson()
+		->body($json)
+		->sendsJson()
+		->send();
+	return $response->body->kbId;
+}
+
+function qna_api_delete_knowledge_base($kbId) {
+	$url = 'https://westus.api.cognitive.microsoft.com/qnamaker/v2.0/knowledgebases/'.$kbId;
+	$response = Request::delete($url)
+		->addHeader('Ocp-Apim-Subscription-Key', QNA_SUBSCRIPTION_KEY)
+		->send();
+}
+
+/**
+ * @param array $add 		An array of question/answer pairs
+ * @param array $delete An array of question/answer pairs
+ */
+function qna_api_update_knowledge_base($kbId, array $add=array(), array $delete=array()) {
+	$url = 'https://westus.api.cognitive.microsoft.com/qnamaker/v2.0/knowledgebases/'.$kbId;
+	$json_arr = array();
+	if (sizeof($add) > 0) {
+		$json_arr['add']['qnaPairs'] = $add;
+	}
+	if (sizeof($delete) > 0) {
+		$json_arr['delete']['qnaPairs'] = $delete;
+	}
+	$json = json_encode($json_arr);
+	$response = Request::patch($url)
+		->addHeader('Ocp-Apim-Subscription-Key', QNA_SUBSCRIPTION_KEY)
+		->addHeader('Content-Type', 'application/json')
+		->body($json)
+		->send();
+}
+
+function qna_api_publish_knowledge_base($kbId) {
+	$url = 'https://westus.api.cognitive.microsoft.com/qnamaker/v2.0/knowledgebases/'.$kbId;
+	$response = Request::put($url)
+		->addHeader('Ocp-Apim-Subscription-Key', QNA_SUBSCRIPTION_KEY)
+		->send();
+}
+
+/**
+ * @param $feedbackRecords array
+ *
+ * array(
+ * 	array(
+ * 		'userId' => 1,
+ * 		'userQuestion' => 'hey',
+ * 		'kbQuestion' => 'hi',
+ * 		'kbAnswer' => 'hey'
+ * 	),
+ * 	array(), ...
+ * )
+ */
+function qna_api_train_knowledge_base($kbId, $feedbackRecords) {
+	$url = 'https://westus.api.cognitive.microsoft.com/qnamaker/v2.0/knowledgebases/'.$kbId . '/train';
+	$json = json_encode(array('feedbackRecords' => $feedbackRecords));
+	$response = Request::patch($url)
+		->addHeader('Ocp-Apim-Subscription-Key', QNA_SUBSCRIPTION_KEY)
+		->addHeader('Content-Type', 'application/json')
+		->body($json)
+		->send();
+}
+
+function qna_api_generate_answer($kbId, $question) {
+	$url = 'https://westus.api.cognitive.microsoft.com/qnamaker/v2.0/knowledgebases/'.$kbId.'/generateAnswer';
+	$json = json_encode(array('question' => $question));
+	$response = Request::post($url)
+		->addHeader('Ocp-Apim-Subscription-Key', QNA_SUBSCRIPTION_KEY)
+		->addHeader('Content-Type', 'application/json')
+		->body($json)
+		->send();
+	return $response->body->answers[0]->answer;
 }

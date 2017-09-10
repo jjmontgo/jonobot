@@ -1,0 +1,1 @@
+{"type":"message","conversation":{"id":"em02h2neam8f"},"from":{"id":"0kmhi11ge90k9","name":"Bot"},"locale":"en-GB","recipient":{"id":"default-user","name":"User"},"replyTold":"8mm56f9ljc4","text":"Normally I wouldnt say this but...","textFormat":"plain"}
